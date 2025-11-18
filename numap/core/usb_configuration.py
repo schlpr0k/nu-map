@@ -67,10 +67,13 @@ class USBConfiguration(USBBaseActor, BaseUSBConfiguration):
             try:
                 self.attributes = attributes
             except AttributeError:
-                if hasattr(self, 'descriptor'):
-                    self.descriptor.attributes = attributes
-                else:  # pragma: no cover - defensive fallback
-                    raise
+                descriptor = getattr(self, 'descriptor', None)
+                if descriptor is not None:
+                    descriptor.attributes = attributes
+                # Cache the attributes locally so we can continue to build
+                # descriptors even if the facedancer object doesn't expose a
+                # descriptor yet (or ever).
+                self._fallback_attributes = attributes
 
             self.max_power = max_power
         self.configuration_string = string
@@ -91,10 +94,23 @@ class USBConfiguration(USBBaseActor, BaseUSBConfiguration):
             len(self.interfaces),
             self.index,
             self.configuration_string_index,
-            self.attributes,
+            self._get_configuration_attributes(),
             self.max_power,
         )
         return descriptor + interface_bytes
 
     def get_other_speed_descriptor(self):
         return self.get_descriptor('highspeed')
+
+    def _get_configuration_attributes(self):
+        '''
+        Return the configuration attributes value, handling facedancer
+        releases that expose ``attributes`` as a read-only property.
+        '''
+        if hasattr(self, '_fallback_attributes'):
+            return self._fallback_attributes
+
+        # Older facedancer releases (and the test stubs) expose ``attributes``
+        # as a mutable attribute, so fall back to whatever value they currently
+        # store.
+        return self.attributes
