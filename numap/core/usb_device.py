@@ -127,6 +127,14 @@ class USBDevice(USBBaseActor, BaseUSBDevice):
 
         self.bos = bos
 
+        # Track whether we've invoked the facedancer.BaseUSBDevice.connect() helper
+        # successfully so ``disconnect()`` can avoid calling into facedancer when
+        # the backend never finished initializing (for example when autodetecting
+        # hardware fails).  facedancer's ``disconnect()`` expects ``self.backend``
+        # to be populated, so calling it after a failed connection attempt would
+        # otherwise raise AttributeError, masking the original failure.
+        self._base_connected = False
+
         for c in self.configurations:
 
             if c.configuration_string:
@@ -268,6 +276,9 @@ class USBDevice(USBBaseActor, BaseUSBDevice):
                 base_connect(self)
             except TypeError:
                 base_connect(self, self.phy)
+            self._base_connected = True
+        else:
+            self._base_connected = False
         # skipping USB.state_attached may not be strictly correct (9.1.1.{1,2})
         self.state = State.powered
 
@@ -278,11 +289,15 @@ class USBDevice(USBBaseActor, BaseUSBDevice):
         except AttributeError:
             base_disconnect = None
 
-        if base_disconnect is not None:
+        if base_disconnect is not None and self._base_connected:
             try:
                 base_disconnect(self)
             except TypeError:
                 base_disconnect(self, self.phy)
+            finally:
+                self._base_connected = False
+        else:
+            self._base_connected = False
         self.state = State.detached
 
     def ack_status_stage(self):
