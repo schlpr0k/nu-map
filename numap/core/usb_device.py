@@ -273,9 +273,9 @@ class USBDevice(USBBaseActor, BaseUSBDevice):
 
         if base_connect is not None:
             try:
-                base_connect(self)
-            except TypeError:
                 base_connect(self, self.phy)
+            except TypeError:
+                base_connect(self)
             self._base_connected = True
         else:
             self._base_connected = False
