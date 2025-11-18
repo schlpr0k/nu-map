@@ -38,3 +38,28 @@ class USBConfiguration(USBBaseActor, BaseUSBConfiguration):
 
         USBBaseActor.__init__(self, app, phy)
         BaseUSBConfiguration.__init__(self, index, string, interfaces, attributes, max_power)
+        self.configuration_string = string
+        self.configuration_string_index = 0
+        self.interfaces = interfaces
+
+    @mutable('configuration_descriptor')
+    def get_descriptor(self, usb_type='fullspeed', valid=False):
+        interface_bytes = b''.join(
+            interface.get_descriptor(usb_type, valid) for interface in self.interfaces
+        )
+        total_length = 9 + len(interface_bytes)
+        descriptor = struct.pack(
+            '<BBHBBBBB',
+            9,  # length of descriptor
+            DescriptorType.configuration,
+            total_length,
+            len(self.interfaces),
+            self.index,
+            self.configuration_string_index,
+            self.attributes,
+            self.max_power,
+        )
+        return descriptor + interface_bytes
+
+    def get_other_speed_descriptor(self):
+        return self.get_descriptor('highspeed')

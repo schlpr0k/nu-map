@@ -34,9 +34,9 @@ class USBEndpoint(USBBaseActor):
         :param phy: physical connection
         :param number: endpoint number
         :param direction: endpoint direction (direction_in/direction_out)
-        :param transfer_type: one of USBEndpoint.transfer_type\*
-        :param sync_type: one of USBEndpoint.sync_type\*
-        :param usage_type: on of USBEndpoint.usage_type\*
+        :param transfer_type: one of USBEndpoint.transfer_type*
+        :param sync_type: one of USBEndpoint.sync_type*
+        :param usage_type: on of USBEndpoint.usage_type*
         :param max_packet_size: maximum size of a packet
         :param interval: TODO
         :type handler:
