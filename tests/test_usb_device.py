@@ -1,4 +1,5 @@
 import numap.core.usb_device as usb_device
+from numap.core.usb import DescriptorType
 
 
 class DummyApp:
@@ -27,7 +28,7 @@ class DummyPhy:
         pass
 
 
-def _make_device(monkeypatch):
+def _make_device(monkeypatch, **overrides):
     # Ensure facedancer internals are not exercised during the test by replacing
     # the BaseUSBDevice initializer with a lightweight stub.
     monkeypatch.setattr(
@@ -36,7 +37,7 @@ def _make_device(monkeypatch):
         lambda self, *args, **kwargs: None,
     )
     phy = DummyPhy()
-    dev = usb_device.USBDevice(
+    params = dict(
         app=DummyApp(),
         phy=phy,
         device_class=0,
@@ -50,6 +51,8 @@ def _make_device(monkeypatch):
         product_string='n',
         serial_number_string='n',
     )
+    params.update(overrides)
+    dev = usb_device.USBDevice(**params)
     return dev, phy
 
 
@@ -105,3 +108,13 @@ def test_usb_device_connect_overrides_factory_with_kwargs(monkeypatch):
     monkeypatch.setattr(usb_device.BaseUSBDevice, 'connect', fake_connect)
     dev.connect()
     assert created == [phy]
+
+
+def test_get_string_descriptor_supports_byte_values(monkeypatch):
+    dev, _ = _make_device(monkeypatch, serial_number_string=b'00001')
+
+    descriptor = dev.get_string_descriptor(dev.serial_number_string_id)
+
+    assert descriptor[0] == len(descriptor)
+    assert descriptor[1] == DescriptorType.string
+    assert descriptor[2:] == '00001'.encode('utf-16-le')
