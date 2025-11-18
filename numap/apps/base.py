@@ -105,6 +105,13 @@ class NumapApp(object):
         _import_greatfet()
         if serial:
             os.environ['GREATFET_DEVICE'] = serial
+        # Ensure facedancer forces the GreatFET backend when we were asked to
+        # use it explicitly. Some facedancer releases fall back to legacy
+        # autodetection when they do not accept the ``device`` argument; in
+        # that case the BACKEND environment variable instructs facedancer to
+        # talk to the connected GreatFET instead of searching for other
+        # hardware.
+        os.environ['BACKEND'] = 'greatfet'
         GreatFET = _import_greatfet()
         kwargs = {}
         if serial is not None:
