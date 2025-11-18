@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 '''
 Generate a numap USB device python code from device and configuration descriptors
 
@@ -351,7 +351,7 @@ class Parser(object):
             self.parse_config_desc(desc_buff)
 
     def emit_output(self):
-        print self.root_node.to_code()
+        print(self.root_node.to_code())
 
 
 def main():
