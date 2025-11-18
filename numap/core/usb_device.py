@@ -69,10 +69,22 @@ class USBDevice(USBBaseActor, BaseUSBDevice):
                                for p in params[1:])
 
         if expects_args:
-            base_init(self, phy, usb_class, device_subclass, protocol_rel_num,
-                      max_packet_size_ep0, vendor_id, product_id, device_rev,
-                      manufacturer_string, product_string, serial_number_string,
-                      configurations, descriptors)
+            try:
+                base_init(self, phy, usb_class, device_subclass, protocol_rel_num,
+                          max_packet_size_ep0, vendor_id, product_id, device_rev,
+                          manufacturer_string, product_string, serial_number_string,
+                          configurations, descriptors)
+            except TypeError as exc:
+                # If facedancer has switched to the newer ``__init__(self)`` signature,
+                # calling it with the legacy argument list will raise a ``TypeError``
+                # complaining about the unexpected positional arguments.  Fall back to
+                # the modern call style in that case while preserving unrelated
+                # ``TypeError`` instances so we do not hide real bugs.
+                msg = str(exc)
+                if 'positional argument' in msg:
+                    base_init(self)
+                else:
+                    raise
         else:
             base_init(self)
 
