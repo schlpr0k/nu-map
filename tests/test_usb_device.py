@@ -75,3 +75,33 @@ def test_usb_device_connect_falls_back_without_backend(monkeypatch):
     monkeypatch.setattr(usb_device.BaseUSBDevice, 'connect', legacy_connect)
     dev.connect()
     assert called == ['legacy']
+
+
+def test_usb_device_connect_overrides_facedancer_factory(monkeypatch):
+    dev, phy = _make_device(monkeypatch)
+    import facedancer
+
+    original = facedancer.FacedancerUSBApp
+    created = []
+
+    def fake_connect(self, backend=None):
+        created.append(facedancer.FacedancerUSBApp())
+
+    monkeypatch.setattr(usb_device.BaseUSBDevice, 'connect', fake_connect)
+    dev.connect()
+    assert created == [phy]
+    assert facedancer.FacedancerUSBApp is original
+
+
+def test_usb_device_connect_overrides_factory_with_kwargs(monkeypatch):
+    dev, phy = _make_device(monkeypatch)
+    import facedancer
+
+    created = []
+
+    def fake_connect(self, backend=None):
+        created.append(facedancer.FacedancerUSBApp(verbose=True))
+
+    monkeypatch.setattr(usb_device.BaseUSBDevice, 'connect', fake_connect)
+    dev.connect()
+    assert created == [phy]
