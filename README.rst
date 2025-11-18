@@ -123,6 +123,14 @@ and checking whether a device-specific message was sent.
 
     $ numap-scan -P greatfet
 
+By default, ``numap-scan`` waits five seconds for each emulated device before
+disconnecting.  Provide ``--timeout`` to customize this window when scanning
+hosts that respond slower or faster than usual:
+
+::
+
+    $ numap-scan -P greatfet --timeout 10
+
 Vendor Specific Device Support Scanning
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
