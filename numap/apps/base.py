@@ -5,6 +5,7 @@ import sys
 import os
 import importlib
 import logging
+import inspect
 try:
     import docopt
 except ImportError:  # pragma: no cover - handled in __init__
@@ -136,10 +137,43 @@ class NumapApp(object):
         if device is None:
             return FacedancerUSBApp()
 
+        if self._facedancer_accepts_device_kwarg():
+            try:
+                return FacedancerUSBApp(device=device)
+            except TypeError:
+                # Some FaceDancer versions accept the keyword but still raise
+                # TypeError for older call signatures. Fall through to the
+                # positional call below to preserve compatibility.
+                pass
+
         try:
-            return FacedancerUSBApp(device=device)
-        except TypeError:
             return FacedancerUSBApp(device)
+        except TypeError:
+            # Older FaceDancer releases do not accept the device argument at
+            # all (positional or keyword). In that case fall back to the
+            # default autodetection which respects GREATFET_DEVICE.
+            self.logger.debug(
+                'FaceDancerUSBApp does not accept a device argument; '
+                'falling back to autodetect'
+            )
+            return FacedancerUSBApp()
+
+    def _facedancer_accepts_device_kwarg(self):
+        try:
+            signature = inspect.signature(FacedancerUSBApp)
+        except (TypeError, ValueError):  # pragma: no cover - depends on backend
+            return False
+
+        for parameter in signature.parameters.values():
+            if parameter.kind not in (
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                inspect.Parameter.KEYWORD_ONLY,
+            ):
+                continue
+            if parameter.name == 'device':
+                return True
+
+        return False
 
     def load_device(self, dev_name, phy):
         if dev_name in self.umap_classes:
