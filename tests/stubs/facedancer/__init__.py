@@ -1,7 +1,6 @@
-from .USBConfiguration import USBConfiguration
 from .USBDevice import USBDevice
 
-__all__ = ['FacedancerUSBApp', 'USBConfiguration', 'USBDevice']
+__all__ = ['FacedancerUSBApp', 'USBDevice']
 
 
 class FacedancerUSBApp(object):

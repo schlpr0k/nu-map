@@ -104,11 +104,24 @@ class NumapApp(object):
         _import_greatfet()
         if serial:
             os.environ['GREATFET_DEVICE'] = serial
+        GreatFET = _import_greatfet()
+        kwargs = {}
+        if serial is not None:
+            kwargs['serial_number'] = serial
+
+        try:
+            device = GreatFET(**kwargs)
+        except TypeError:
+            if serial is not None:
+                device = GreatFET(serial)
+            else:
+                device = GreatFET()
         msg = 'Using GreatFET FaceDancer backend'
         if serial:
             msg += f' (serial: {serial})'
         self.logger.info(msg)
         return self._instantiate_facedancer_app()
+        return self._instantiate_facedancer_app(device=device)
 
     def _create_legacy_facedancer_phy(self, phy_string):
         if phy_string and phy_string.lower() not in {'', 'auto', 'facedancer', 'fd', 'fd:'} and not phy_string.lower().startswith('fd:'):
