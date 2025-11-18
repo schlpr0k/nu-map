@@ -25,6 +25,8 @@ Examples:
     emulate your own device:
         numapemulate -P greatfet -C my_usb_device.py
 '''
+import asyncio
+import inspect
 import traceback
 
 from numap.apps.base import NumapApp
@@ -40,7 +42,9 @@ class NumapEmulationApp(NumapApp):
         self.dev = self.load_device(self.options['--class'], self.phy)
         try:
             self.dev.connect()
-            self.dev.run()
+            result = self.dev.run()
+            if inspect.isawaitable(result):
+                asyncio.run(result)
         except KeyboardInterrupt:
             self.logger.info('user terminated the run')
         except:
