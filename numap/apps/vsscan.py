@@ -123,6 +123,7 @@ class NumapVSScanApp(NumapApp):
         self.start_time = 0
         self.stop_signal_received = False
         self.between_delay = 5
+        self.current_test_timed_out = False
         signal.signal(signal.SIGINT, self.signal_handler)
         timeout = self.options['--timeout']
         if timeout:
@@ -254,6 +255,7 @@ class NumapVSScanApp(NumapApp):
             self.logger.always('Testing support for %s' % db_entry)
             self.setup_packet_received = False
             self.current_usb_function_supported = False
+            self.current_test_timed_out = False
             self.start_time = time.time()
             device = USBVendorSpecificDevice(self, phy, vid, pid)
             try:
@@ -263,6 +265,7 @@ class NumapVSScanApp(NumapApp):
                     if inspect.isawaitable(result):
                         asyncio.run(result)
             except _TestTimeoutExpired:
+                self.current_test_timed_out = True
                 self.logger.warning('Test exceeded %d seconds, moving to the next device',
                                     self.test_timeout)
             except:
@@ -294,12 +297,21 @@ class NumapVSScanApp(NumapApp):
 
     def is_host_alive(self):
         if not self.setup_packet_received:
+            if self.current_test_timed_out:
+                self.logger.warning('Device did not respond before the timeout expired; '
+                                    'continuing with the next entry')
+                self.current_test_timed_out = False
+                self._record_no_response()
+                return True
             self.logger.error('Host appears to have died or is simply ignoring us :(')
-            current_index = self.scan_session.current
-            if current_index not in self.scan_session.no_response:
-                self.scan_session.no_response[current_index] = self.prev_index
-            self.sync_session()
+            self._record_no_response()
         return self.setup_packet_received
+
+    def _record_no_response(self):
+        current_index = self.scan_session.current
+        if current_index not in self.scan_session.no_response:
+            self.scan_session.no_response[current_index] = self.prev_index
+        self.sync_session()
 
     def usb_function_supported(self, reason=None):
         '''
