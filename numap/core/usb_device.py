@@ -55,6 +55,49 @@ def _restore_facedancer_factories(patched):
     for module, factory in patched:
         setattr(module, 'FacedancerUSBApp', factory)
 
+
+def _normalize_string_descriptor_value(value):
+    """Convert *value* into a Unicode string suitable for string descriptors."""
+
+    if value is None:
+        return ''
+
+    if isinstance(value, str):
+        return value
+
+    if isinstance(value, bytes):
+        payload = value
+        if len(payload) >= 2:
+            length = payload[0]
+            dtype = payload[1]
+            if dtype == DescriptorType.string and 2 < length <= len(payload):
+                payload = payload[2:length]
+        for encoding in ('utf-8', 'utf-16-le', 'latin-1'):
+            try:
+                return payload.decode(encoding)
+            except UnicodeDecodeError:
+                continue
+        return payload.decode('utf-8', errors='replace')
+
+    return str(value)
+
+
+def _encode_string_descriptor_payload(value):
+    """Return the UTF-16LE payload (without BOM) for *value*."""
+
+    if value is None:
+        return b''
+
+    if isinstance(value, bytes):
+        payload = value
+    else:
+        payload = str(value).encode('utf-16')
+
+    if len(payload) >= 2 and payload[:2] in (b'\xff\xfe', b'\xfe\xff'):
+        payload = payload[2:]
+
+    return payload
+
 class USBDevice(USBBaseActor, BaseUSBDevice):
     name = 'Device'
 
@@ -254,6 +297,7 @@ class USBDevice(USBBaseActor, BaseUSBDevice):
         handler(req)
 
     def get_string_id(self, s):
+        s = _normalize_string_descriptor_value(s)
         try:
             i = self.strings.index(s)
         except ValueError:
@@ -463,15 +507,16 @@ class USBDevice(USBBaseActor, BaseUSBDevice):
         self.debug('get_string_descriptor: %#x (%#x)' % (num, len(self.strings)))
         s = None
         if num <= len(self.strings):
-            s = self.strings[num - 1].encode('utf-16')
+            s = _encode_string_descriptor_payload(self.strings[num - 1])
         else:
             if self.configuration:
-                s = self.configuration.get_string_by_id(num)
-        if not s:
-            s = self.strings[0].encode('utf-16')
-        # Linux doesn't like the leading 2-byte Byte Order Mark (BOM);
-        # FreeBSD is okay without it
-        s = s[2:]
+                s = _encode_string_descriptor_payload(
+                    self.configuration.get_string_by_id(num)
+                )
+        if not s and self.strings:
+            s = _encode_string_descriptor_payload(self.strings[0])
+        elif not s:
+            s = b''
 
         d = struct.pack(
             '<BB',
