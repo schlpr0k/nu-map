@@ -18,7 +18,8 @@ Options:
     -e --exhaustive             go over each (vid, pid) combination - do not skip device if its driver is in the supported list
 
 Physical layer:
-    fd:<serial_port>        use facedancer connected to given serial port
+    greatfet[:serial]       use a GreatFET board (auto-detects when serial omitted)
+    facedancer              use legacy FaceDancer hardware
     gadgetfs                use gadgetfs (requires mounting of gadgetfs beforehand)
 
 DB_FILE:
@@ -33,9 +34,9 @@ VID:PID
 
 Examples:
     scan using a db file with 5 seconds timeout and 2 seconds delay between tries
-    $ numapvsscan -P fd:/dev/ttyUSB0 -d vid_pid_db.py -t 5 -b 2
+    $ numapvsscan -P greatfet -d vid_pid_db.py -t 5 -b 2
     scan using facedancer a specific vid:pid with 5 seconds timeout
-    $ numapvsscan -P fd:/dev/ttyUSB0 -s 2058:1005 -t 5
+    $ numapvsscan -P facedancer -s 2058:1005 -t 5
 '''
 import time
 import traceback
