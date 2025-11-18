@@ -14,7 +14,7 @@ def test_load_phy_greatfet_with_serial(monkeypatch):
     app = SimpleApp()
     phy = app.load_phy('greatfet:ABC123')
     assert os.environ['GREATFET_DEVICE'] == 'ABC123'
-    assert getattr(phy, 'device', None) is None
+    assert phy.device.serial_number == 'ABC123'
     app = SimpleApp()
     phy = app.load_phy('greatfet:ABC123')
     assert phy.device.serial_number == 'ABC123'

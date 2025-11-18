@@ -120,7 +120,6 @@ class NumapApp(object):
         if serial:
             msg += f' (serial: {serial})'
         self.logger.info(msg)
-        return self._instantiate_facedancer_app()
         return self._instantiate_facedancer_app(device=device)
 
     def _create_legacy_facedancer_phy(self, phy_string):
