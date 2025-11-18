@@ -94,7 +94,7 @@ class USBDevice(USBBaseActor, BaseUSBDevice):
 
             if c.configuration_string:
                 csi = self.get_string_id(c.configuration_string)
-                c.configuration_string_index = 0
+                c.configuration_string_index = csi
 
             c.set_device(self)
 
@@ -114,6 +114,60 @@ class USBDevice(USBBaseActor, BaseUSBDevice):
 
         self.address = 0
         self.endpoints = {}
+        self.setup_request_handlers()
+
+    def _get_interface_by_number(self, interface_number):
+        configs = []
+        if self.configuration is not None:
+            configs.append(self.configuration)
+        configs.extend(self.configurations)
+        for config in configs:
+            for interface in getattr(config, 'interfaces', []):
+                if interface.number == interface_number:
+                    return interface
+        return None
+
+    def handle_request(self, data):
+        req = USBDeviceRequest(data)
+        recipient = req.get_recipient()
+        request_type = req.get_type()
+
+        if recipient == Request.recipient_device:
+            target = self
+        elif recipient == Request.recipient_interface:
+            target = self._get_interface_by_number(req.get_index())
+        elif recipient == Request.recipient_endpoint:
+            target = self.endpoints.get(req.get_index())
+        else:
+            target = self
+
+        if target is None:
+            self.phy.stall_ep0()
+            return
+
+        handler = None
+        if request_type == Request.type_standard:
+            handler = getattr(target, 'request_handlers', {}).get(req.request)
+            if handler is None:
+                handler = getattr(target, 'default_handler', None)
+        elif request_type == Request.type_class:
+            usb_class = getattr(target, 'usb_class', None) or self.usb_class
+            if usb_class is not None:
+                handler = usb_class.request_handlers.get(req.request)
+                if handler is None:
+                    handler = usb_class.default_handler
+        elif request_type == Request.type_vendor:
+            usb_vendor = getattr(target, 'usb_vendor', None) or self.usb_vendor
+            if usb_vendor is not None:
+                handler = usb_vendor.request_handlers.get(req.request)
+                if handler is None:
+                    handler = usb_vendor.default_handler
+
+        if handler is None:
+            target.default_handler(req)
+            return
+
+        handler(req)
 
     def get_string_id(self, s):
         try:
@@ -140,6 +194,24 @@ class USBDevice(USBBaseActor, BaseUSBDevice):
             12: self.handle_synch_frame_request,
             51: self.handle_aoa_get_protocol_request,
         }
+
+    def handle_get_status_request(self, req):
+        self.debug('Received GET_STATUS request')
+        # default to a self-powered, remote-wakeup-disabled device
+        self.phy.send_on_endpoint(0, b'\x01\x00')
+
+    def handle_clear_feature_request(self, req):
+        self.debug('Received CLEAR_FEATURE request %#x' % req.value)
+        self.phy.send_on_endpoint(0, b'')
+
+    def handle_set_feature_request(self, req):
+        self.debug('Received SET_FEATURE request %#x' % req.value)
+        self.phy.send_on_endpoint(0, b'')
+
+    def handle_set_address_request(self, req):
+        self.debug('Received SET_ADDRESS request %#x' % req.value)
+        self.address = req.value & 0x7f
+        self.ack_status_stage()
 
     def connect(self):
         self.phy.connect(self)
@@ -289,6 +361,20 @@ class USBDevice(USBBaseActor, BaseUSBDevice):
         else:
             return self.get_string_descriptor(num)
 
+    def handle_get_descriptor_request(self, req):
+        dtype = (req.value >> 8) & 0xff
+        dindex = req.value & 0xff
+        self.debug('Received GET_DESCRIPTOR req type=%#x index=%#x len=%d' % (dtype, dindex, req.length))
+        response = self.descriptors.get(dtype)
+        if callable(response):
+            response = response(dindex)
+        if not response:
+            self.phy.stall_ep0()
+            return
+        if req.length:
+            response = response[:req.length]
+        self.phy.send_on_endpoint(0, response)
+
     @mutable('hub_descriptor')
     def handle_get_hub_descriptor_request(self, num):
         bLength = 9
@@ -407,6 +493,9 @@ class USBDeviceRequest(object):
             )
             raw_bytes += obj.data
 
+        header = raw_bytes[:8]
+        self.request_type, self.request, self.value, self.index, self.length = struct.unpack('<BBHHH', header)
+        self.data = raw_bytes[8:]
         self.raw_bytes = raw_bytes
 
     def __str__(self):
@@ -430,9 +519,9 @@ class USBDeviceRequest(object):
             '<BBHHH',
             self.request_type,
             self.request,
-            self.value >> 8,
-            self.index >> 8,
-            self.length >> 8,
+            self.value,
+            self.index,
+            self.length,
         )
         return b
 

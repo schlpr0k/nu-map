@@ -5,10 +5,16 @@ import sys
 import os
 import importlib
 import logging
-import docopt
+try:
+    import docopt
+except ImportError:  # pragma: no cover - handled in __init__
+    docopt = None
 
 # TODO: replace FaceDancerPhy with just FaceDancerApp
-from facedancer import FacedancerUSBApp
+try:
+    from facedancer import FacedancerUSBApp
+except ImportError:  # pragma: no cover - handled in load_phy
+    FacedancerUSBApp = None
 from numap.utils.ulogger import set_default_handler_level
 
 
@@ -16,6 +22,10 @@ class NumapApp(object):
 
     def __init__(self, docstring=None):
         if docstring is not None:
+            if docopt is None:
+                raise ImportError(
+                    'docopt is required when providing a CLI docstring to NumapApp'
+                )
             self.options = docopt.docopt(docstring)
         else:
             self.options = {}
@@ -57,6 +67,8 @@ class NumapApp(object):
 
     def load_phy(self, phy_string):
         # TODO: support options; bring GadgetFS into FaceDancer2?
+        if FacedancerUSBApp is None:
+            raise ImportError('facedancer is required to load a physical PHY')
         return FacedancerUSBApp()
 
     def load_device(self, dev_name, phy):

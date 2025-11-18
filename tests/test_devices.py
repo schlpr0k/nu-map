@@ -128,7 +128,7 @@ class BaseDeviceTests(object):
         self.device.handle_data_available(ep_num, data)
 
     def get_single_response(self, ep_num, response_length=None, max_respone_length=None):
-        self.assertEquals(len(self.events.events), 1)
+        self.assertEqual(len(self.events.events), 1)
         ev = self.events.events.pop()
         self.assertTrue(isinstance(ev, SendDataEvent))
         self.assertEqual(ev.ep_num, 0)
@@ -172,7 +172,7 @@ class CdcAcmDeviceTests(unittest.TestCase, BaseDeviceTests):
     def setUp(self):
         self._setUp()
 
-    def _testClassRequestHandling(self, req, req_data=None, req_length=0, response_data=''):
+    def _testClassRequestHandling(self, req, req_data=None, req_length=0, response_data=b''):
         if req_data is not None:
             length = len(req_data)
         else:
