@@ -37,7 +37,7 @@ class USBSmartcardClass(USBClass):
 
     @mutable('get_clock_frequencies_response')
     def handle_get_clock_frequencies(self, req):
-        response = ''
+        response = b''
         for frequency in self.interface.clock_frequencies:
             response += struct.pack('<I', frequency)
         response = struct.pack('<I', len(response)) + response
@@ -45,7 +45,7 @@ class USBSmartcardClass(USBClass):
 
     @mutable('get_data_rates_response')
     def handle_get_data_rates(self, req):
-        response = ''
+        response = b''
         for data_rate in self.interface.data_rates:
             response += struct.pack('<I', data_rate)
         response = struct.pack('<I', len(response)) + response
