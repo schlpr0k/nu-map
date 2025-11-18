@@ -114,3 +114,28 @@ class USBConfiguration(USBBaseActor, BaseUSBConfiguration):
         # as a mutable attribute, so fall back to whatever value they currently
         # store.
         return self.attributes
+
+    def set_device(self, device):
+        """Associate this configuration with a :class:`USBDevice` instance.
+
+        facedancer releases prior to 2024 exposed ``set_device`` on
+        ``USBConfiguration`` while newer ones removed it entirely.  nümap still
+        expects configurations to offer this helper, so provide a compatibility
+        shim that proxies to facedancer when possible while ensuring our own
+        bookkeeping continues to work.
+        """
+
+        # Propagate the call to facedancer if the method still exists so that
+        # any internal state the backend needs continues to be updated.
+        base_set_device = getattr(BaseUSBConfiguration, 'set_device', None)
+        if base_set_device is not None:
+            base_set_device(self, device)
+
+        self.device = device
+
+        # Make sure each interface knows which configuration it belongs to so
+        # class-specific logic can access the associated device.
+        for interface in getattr(self, 'interfaces', []):
+            set_config = getattr(interface, 'set_configuration', None)
+            if callable(set_config):
+                set_config(self)
