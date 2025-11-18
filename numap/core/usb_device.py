@@ -10,7 +10,10 @@ from numap.core.usb import DescriptorType, State, Request
 from numap.core.usb_base import USBBaseActor
 from numap.fuzz.helpers import mutable
 
-from facedancer.USBDevice import USBDevice as BaseUSBDevice
+try:
+    from facedancer import USBDevice as BaseUSBDevice
+except ImportError:  # pragma: no cover - compatibility with older facedancer
+    from facedancer.USBDevice import USBDevice as BaseUSBDevice
 
 class USBDevice(USBBaseActor, BaseUSBDevice):
     name = 'Device'

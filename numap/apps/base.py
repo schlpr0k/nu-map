@@ -18,6 +18,14 @@ except ImportError:  # pragma: no cover - handled in load_phy
 from numap.utils.ulogger import set_default_handler_level
 
 
+def _import_greatfet():  # pragma: no cover - simple import helper
+    """Import helper that defers importing GreatFET until needed."""
+
+    from greatfet import GreatFET
+
+    return GreatFET
+
+
 class NumapApp(object):
 
     def __init__(self, docstring=None):
@@ -66,10 +74,60 @@ class NumapApp(object):
         return logger
 
     def load_phy(self, phy_string):
-        # TODO: support options; bring GadgetFS into FaceDancer2?
+        phy_string = (phy_string or 'auto').strip()
+        phy_selector = phy_string.lower()
+
+        if phy_selector == 'auto':
+            phy = self._attempt_greatfet_phy()
+            if phy is not None:
+                return phy
+            return self._create_legacy_facedancer_phy(phy_string)
+
+        if phy_selector.startswith('greatfet'):
+            serial = None
+            if ':' in phy_string:
+                serial = phy_string.split(':', 1)[1].strip() or None
+            return self._create_greatfet_phy(serial)
+
+        return self._create_legacy_facedancer_phy(phy_string)
+
+    def _attempt_greatfet_phy(self):
+        try:
+            return self._create_greatfet_phy()
+        except ImportError as exc:
+            self.logger.debug('GreatFET support unavailable: %s', exc)
+        except Exception as exc:  # pragma: no cover - exercised with real hardware
+            self.logger.warning('Failed to initialize GreatFET backend: %s', exc)
+        return None
+
+    def _create_greatfet_phy(self, serial=None):
+        _import_greatfet()
+        if serial:
+            os.environ['GREATFET_DEVICE'] = serial
+        msg = 'Using GreatFET FaceDancer backend'
+        if serial:
+            msg += f' (serial: {serial})'
+        self.logger.info(msg)
+        return self._instantiate_facedancer_app()
+
+    def _create_legacy_facedancer_phy(self, phy_string):
+        if phy_string and phy_string.lower() not in {'', 'auto', 'facedancer', 'fd', 'fd:'} and not phy_string.lower().startswith('fd:'):
+            self.logger.info(
+                'Using legacy FaceDancer backend for PHY "%s"', phy_string
+            )
+        return self._instantiate_facedancer_app()
+
+    def _instantiate_facedancer_app(self, device=None):
         if FacedancerUSBApp is None:
             raise ImportError('facedancer is required to load a physical PHY')
-        return FacedancerUSBApp()
+
+        if device is None:
+            return FacedancerUSBApp()
+
+        try:
+            return FacedancerUSBApp(device=device)
+        except TypeError:
+            return FacedancerUSBApp(device)
 
     def load_device(self, dev_name, phy):
         if dev_name in self.umap_classes:

@@ -20,7 +20,8 @@ setup(
         'six',
         'docopt',
         'kittyfuzzer>=0.6.9',
-        'facedancer'
+        'facedancer>=3.0.0',
+        'greatfet',
     ],
     keywords='security,usb,fuzzing,kitty',
     entry_points={

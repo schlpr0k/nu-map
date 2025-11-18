@@ -7,8 +7,9 @@ Preface
 Umap and nümap were developed based on the Facedancer -
 it had some advantages over other solutions,
 and allowed python emulation of USB devices.
-It also enabled any PC to act as a USB device,
-by only using a small hardware device that speaks over
+GreatFET One boards running the modern FaceDancer backend now provide the
+same functionality without a USB-serial bridge, while still enabling any PC
+to act as a USB device by only using a small hardware device that speaks over
 a very common channel with the PC (UART over USB).
 
 However, with nümap, we wanted to decouple the device emulation (e.g. nümap)

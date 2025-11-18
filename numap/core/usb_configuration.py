@@ -8,7 +8,10 @@ from numap.core.usb_base import USBBaseActor
 from numap.core.usb import DescriptorType
 from numap.fuzz.helpers import mutable
 
-from facedancer.USBConfiguration import USBConfiguration as BaseUSBConfiguration
+try:
+    from facedancer import USBConfiguration as BaseUSBConfiguration
+except ImportError:  # pragma: no cover - compatibility with older facedancer
+    from facedancer.USBConfiguration import USBConfiguration as BaseUSBConfiguration
 
 class USBConfiguration(USBBaseActor, BaseUSBConfiguration):
 
