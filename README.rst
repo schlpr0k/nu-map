@@ -61,9 +61,13 @@ MTP
 Hardware
 --------
 
-- `Facedancer <http://goodfet.sourceforge.net/hardware/facedancer21/>`_
-  is the recommended hardware for nümap.
-  nümap was developed based on it, and you'll get the most support with it.
+- `GreatFET One <https://greatscottgadgets.com/greatfet/one/>`_ running the
+  FaceDancer 3.x firmware is the recommended hardware for nümap.  The
+  accompanying `greatfet` Python package exposes the USB peripheral directly,
+  so nümap no longer needs to talk to a serial ``/dev/ttyUSB*`` bridge.
+- Legacy `Facedancer <http://goodfet.sourceforge.net/hardware/facedancer21/>`_
+  hardware is still supported via ``-P facedancer`` for testers who rely on the
+  original boards.
 - `Raspdancer <http://wiki.yobi.be/wiki/Raspdancer>` is supported on RPi
 - **GadgetFS** is partially supported.
   This support is very experimental (even more than the rest of nümap)
@@ -86,18 +90,21 @@ Device Emulation
 ~~~~~~~~~~~~~~~~
 
 nümap's basic functionallity is emulating a USB device.
+When running on a GreatFET One, simply pass ``-P greatfet`` (or
+``-P greatfet:SERIAL`` if you have multiple boards).  Legacy FaceDancer
+hardware can still be selected with ``-P facedancer``.
 You can emulate one of the existing devices
 (use **numap-list** to see the available devices):
 
 ::
 
-    $ numap-emulate -P fd:/dev/ttyUSB0 -C mass_storage
+    $ numap-emulate -P greatfet -C mass_storage
 
 or emulate your own device:
 
 ::
 
-    $ numap-emulate -P fd:/dev/ttyUSB0 -C ~/my_mass_storage.py
+    $ numap-emulate -P greatfet -C ~/my_mass_storage.py
 
 A detailed guide to add your device will be added soon,
 in the meantime, you can take a look at numap devices
@@ -114,7 +121,7 @@ and checking whether a device-specific message was sent.
 
 ::
 
-    $ numap-scan -P fd:/dev/ttyUSB0
+    $ numap-scan -P greatfet
 
 Vendor Specific Device Support Scanning
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -130,7 +137,7 @@ or another file in the same format:
 
 ::
 
-    $ numap-vsscan -P fd:/dev/ttyUSB0 -d $UMAP2_DIR/data/vid_pid_db.py
+    $ numap-vsscan -P greatfet -d $UMAP2_DIR/data/vid_pid_db.py
 
 Or by scanning a specific vid-pid range -
 in this example -
@@ -139,7 +146,7 @@ and PID from 0x0000 to 0xffff:
 
 ::
 
-    $ numap-vsscan -P fd:/dev/ttyUSB0 -s 1001-1004:0000-ffff
+    $ numap-vsscan -P greatfet -s 1001-1004:0000-ffff
 
 Any patches/additions to the vid_pid_db.py file are very welcome!
 
@@ -158,7 +165,7 @@ which might be unified into a single script in the future.
 
    ::
 
-        $ numap-stages -P fd:/dev/ttyUSB0 -C keyboard -s keyboard.stages
+        $ numap-stages -P greatfet -C keyboard -s keyboard.stages
 
 2. Start the kitty fuzzer in a separate shell,
    and provide it with the stages generated in step 1.
@@ -171,7 +178,7 @@ which might be unified into a single script in the future.
 
    ::
 
-        $ numap-fuzz -P fd:/dev/ttyUSB0 -C keyboard
+        $ numap-fuzz -P greatfet -C keyboard
 
 After stage 3 is performed, the fuzzing session will begin.
 

@@ -16,12 +16,13 @@ Options:
     --pid PID                   override product ID
 
 Physical layer:
-    fd:<serial_port>        use facedancer connected to given serial port
+    greatfet[:serial]       use a GreatFET board (auto-detects when serial omitted)
+    facedancer              use legacy FaceDancer hardware
     gadgetfs                use gadgetfs (requires mounting of gadgetfs beforehand)
 
 Examples:
     emulate disk-on-key:
-        numapfuzz -P fd:/dev/ttyUSB1 -C mass_storage
+        numapfuzz -P greatfet -C mass_storage
 '''
 import os
 import time

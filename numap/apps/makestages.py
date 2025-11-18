@@ -15,7 +15,8 @@ Options:
     --pid PID               override product ID
 
 Physical layer:
-    fd:<serial_port>        use facedancer connected to given serial port
+    greatfet[:serial]       use a GreatFET board (auto-detects when serial omitted)
+    facedancer              use legacy FaceDancer hardware
     gadgetfs                use gadgetfs (requires mounting of gadgetfs beforehand)
 '''
 import time
