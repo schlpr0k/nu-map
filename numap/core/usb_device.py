@@ -252,11 +252,37 @@ class USBDevice(USBBaseActor, BaseUSBDevice):
 
     def connect(self):
         self.phy.connect(self)
+        # facedancer >= 2024.7 expects USBDevice.connect() to be invoked so the
+        # backend reference is stored on the device.  Older releases either did
+        # nothing or accepted an optional backend argument.  Call into the base
+        # implementation when it exists while gracefully handling the
+        # historical call signatures so we remain compatible with every
+        # supported facedancer version.
+        try:
+            base_connect = BaseUSBDevice.connect
+        except AttributeError:
+            base_connect = None
+
+        if base_connect is not None:
+            try:
+                base_connect(self)
+            except TypeError:
+                base_connect(self, self.phy)
         # skipping USB.state_attached may not be strictly correct (9.1.1.{1,2})
         self.state = State.powered
 
     def disconnect(self):
         self.phy.disconnect()
+        try:
+            base_disconnect = BaseUSBDevice.disconnect
+        except AttributeError:
+            base_disconnect = None
+
+        if base_disconnect is not None:
+            try:
+                base_disconnect(self)
+            except TypeError:
+                base_disconnect(self, self.phy)
         self.state = State.detached
 
     def ack_status_stage(self):
