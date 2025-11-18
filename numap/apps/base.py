@@ -12,10 +12,7 @@ except ImportError:  # pragma: no cover - handled in __init__
     docopt = None
 
 # TODO: replace FaceDancerPhy with just FaceDancerApp
-try:
-    from facedancer import FacedancerUSBApp
-except ImportError:  # pragma: no cover - handled in load_phy
-    FacedancerUSBApp = None
+FacedancerUSBApp = None
 from numap.utils.ulogger import set_default_handler_level
 
 
@@ -138,13 +135,12 @@ class NumapApp(object):
         return self._instantiate_facedancer_app()
 
     def _instantiate_facedancer_app(self, device=None):
-        if FacedancerUSBApp is None:
-            raise ImportError('facedancer is required to load a physical PHY')
+        FacedancerUSBApp = self._import_facedancer_app()
 
         if device is None:
             return FacedancerUSBApp()
 
-        if self._facedancer_accepts_device_kwarg():
+        if self._facedancer_accepts_device_kwarg(FacedancerUSBApp):
             try:
                 return FacedancerUSBApp(device=device)
             except TypeError:
@@ -165,9 +161,26 @@ class NumapApp(object):
             )
             return FacedancerUSBApp()
 
-    def _facedancer_accepts_device_kwarg(self):
+    def _import_facedancer_app(self):
+        global FacedancerUSBApp
+
+        if FacedancerUSBApp is not None:
+            return FacedancerUSBApp
+
         try:
-            signature = inspect.signature(FacedancerUSBApp)
+            from facedancer import FacedancerUSBApp as FacedancerUSBAppImpl
+        except ImportError as exc:  # pragma: no cover - exercised when missing
+            raise ImportError('facedancer is required to load a physical PHY') from exc
+
+        FacedancerUSBApp = FacedancerUSBAppImpl
+        return FacedancerUSBApp
+
+    def _facedancer_accepts_device_kwarg(self, facedancer_cls=None):
+        if facedancer_cls is None:
+            facedancer_cls = self._import_facedancer_app()
+
+        try:
+            signature = inspect.signature(facedancer_cls)
         except (TypeError, ValueError):  # pragma: no cover - depends on backend
             return False
 

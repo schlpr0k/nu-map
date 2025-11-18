@@ -1,4 +1,6 @@
+import importlib
 import os
+import sys
 
 import numap.apps.base as base
 from numap.apps.base import NumapApp
@@ -30,3 +32,18 @@ def test_load_phy_auto_falls_back(monkeypatch):
     app = SimpleApp()
     phy = app.load_phy('auto')
     assert getattr(phy, 'device', None) is None
+
+
+def test_load_phy_sets_backend_before_import(monkeypatch):
+    monkeypatch.delenv('BACKEND', raising=False)
+    monkeypatch.delenv('GREATFET_DEVICE', raising=False)
+    monkeypatch.delitem(sys.modules, 'facedancer', raising=False)
+    base.FacedancerUSBApp = None
+
+    app = SimpleApp()
+    phy = app.load_phy('greatfet:SERIAL42')
+    assert phy.device.serial_number == 'SERIAL42'
+
+    facedancer = importlib.import_module('facedancer')
+    assert facedancer.BACKEND_ENV_AT_IMPORT == 'greatfet'
+    assert facedancer.GREATFET_DEVICE_ENV_AT_IMPORT == 'SERIAL42'

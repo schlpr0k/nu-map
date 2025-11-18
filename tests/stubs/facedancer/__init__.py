@@ -1,6 +1,12 @@
+import os
+
 from .USBDevice import USBDevice
 
 __all__ = ['FacedancerUSBApp', 'USBDevice']
+
+
+BACKEND_ENV_AT_IMPORT = os.environ.get('BACKEND')
+GREATFET_DEVICE_ENV_AT_IMPORT = os.environ.get('GREATFET_DEVICE')
 
 
 class FacedancerUSBApp(object):
