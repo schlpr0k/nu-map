@@ -52,16 +52,29 @@ class NumapScanApp(NumapApp):
         supported = []
         for device_name in self.umap_classes:
             self.logger.always('Testing support: %s' % (device_name))
+            device = None
             try:
                 self.start_time = time.time()
                 device = self.load_device(device_name, phy)
                 device.connect()
                 result = device.run()
                 if inspect.isawaitable(result):
-                    asyncio.run(result)
-                device.disconnect()
-            except:
+                    try:
+                        asyncio.run(asyncio.wait_for(result, timeout=self.timeout_seconds))
+                    except asyncio.TimeoutError:
+                        self.logger.error(
+                            'Timed out waiting %.1f seconds for %s to finish. Disconnecting.',
+                            self.timeout_seconds,
+                            device_name,
+                        )
+            except Exception:
                 self.logger.error(traceback.format_exc())
+            finally:
+                if device is not None:
+                    try:
+                        device.disconnect()
+                    except Exception:
+                        self.logger.error(traceback.format_exc())
             phy.disconnect()
             if self.current_usb_function_supported:
                 self.logger.always('Device is SUPPORTED')
