@@ -309,19 +309,23 @@ class USBDevice(USBBaseActor, BaseUSBDevice):
         # backend we already instantiated (for example when ``-P greatfet`` is
         # provided).  Temporarily override the factory so zero-argument calls
         # reuse ``self.phy`` and avoid unwanted autodetection.
+        patched_factories = _override_facedancer_factories(self.phy)
         try:
             base_connect = BaseUSBDevice.connect
         except AttributeError:
             base_connect = None
 
-        if base_connect is not None:
-            try:
-                base_connect(self, self.phy)
-            except TypeError:
-                base_connect(self)
-            self._base_connected = True
-        else:
-            self._base_connected = False
+        try:
+            if base_connect is not None:
+                try:
+                    base_connect(self, self.phy)
+                except TypeError:
+                    base_connect(self)
+                self._base_connected = True
+            else:
+                self._base_connected = False
+        finally:
+            _restore_facedancer_factories(patched_factories)
         # skipping USB.state_attached may not be strictly correct (9.1.1.{1,2})
         self.state = State.powered
 
