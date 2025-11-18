@@ -2,10 +2,11 @@
 Scan device support in USB host
 
 Usage:
-    numapscan [-P=PHY_INFO] [-q] [-v ...]
+    numapscan [-P=PHY_INFO] [-t SECONDS] [-q] [-v ...]
 
 Options:
     -P --phy PHY_INFO           physical layer info, see list below
+    -t --timeout SECONDS        maximum time to wait for a host response [default: 5]
     -v --verbose                verbosity level
     -q --quiet                  quiet mode. only print warning/error messages
 
@@ -30,6 +31,11 @@ class NumapScanApp(NumapApp):
         super(NumapScanApp, self).__init__(options)
         self.current_usb_function_supported = False
         self.start_time = 0
+        timeout_opt = self.options.get('--timeout', 5)
+        try:
+            self.timeout_seconds = float(timeout_opt)
+        except (TypeError, ValueError) as exc:
+            raise ValueError('Timeout must be a numeric value in seconds') from exc
 
     def usb_function_supported(self, reason=None):
         '''
@@ -74,7 +80,7 @@ class NumapScanApp(NumapApp):
         #     return True
         stop_phy = False
         passed = int(time.time() - self.start_time)
-        if passed > 5:
+        if passed > self.timeout_seconds:
             self.logger.info('have been waiting long enough (over %d secs.), disconnect' % (passed))
             stop_phy = True
         return stop_phy
