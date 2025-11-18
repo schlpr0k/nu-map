@@ -13,6 +13,13 @@ try:
 except ImportError:  # pragma: no cover - compatibility with older facedancer
     from facedancer.USBConfiguration import USBConfiguration as BaseUSBConfiguration
 
+# Python allows importing a submodule via ``from facedancer import
+# USBConfiguration``.  Older facedancer releases rely on this behavior, while
+# newer ones expose the class directly.  Normalize the import so that
+# ``BaseUSBConfiguration`` always refers to the class.
+if not isinstance(BaseUSBConfiguration, type):  # pragma: no cover - import shim
+    BaseUSBConfiguration = BaseUSBConfiguration.USBConfiguration
+
 class USBConfiguration(USBBaseActor, BaseUSBConfiguration):
 
     name = 'Configuration'
@@ -40,7 +47,20 @@ class USBConfiguration(USBBaseActor, BaseUSBConfiguration):
         '''
 
         USBBaseActor.__init__(self, app, phy)
-        BaseUSBConfiguration.__init__(self, index, string, interfaces, attributes, max_power)
+        try:
+            # Newer facedancer releases expect the historical positional
+            # arguments.
+            BaseUSBConfiguration.__init__(
+                self, index, string, interfaces, attributes, max_power
+            )
+        except TypeError:
+            # facedancer 2023.9 switched to a parameter-less constructor that
+            # requires the attributes to be populated manually.  Fall back to a
+            # no-argument call to keep nümap compatible with both versions.
+            BaseUSBConfiguration.__init__(self)
+            self.index = index
+            self.attributes = attributes
+            self.max_power = max_power
         self.configuration_string = string
         self.configuration_string_index = 0
         self.interfaces = interfaces
