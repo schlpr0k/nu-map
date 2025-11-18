@@ -38,6 +38,8 @@ Examples:
     scan using facedancer a specific vid:pid with 5 seconds timeout
     $ numapvsscan -P facedancer -s 2058:1005 -t 5
 '''
+import asyncio
+import inspect
 import time
 import traceback
 import os
@@ -245,7 +247,9 @@ class NumapVSScanApp(NumapApp):
             device = USBVendorSpecificDevice(self, phy, vid, pid)
             try:
                 device.connect()
-                device.run()
+                result = device.run()
+                if inspect.isawaitable(result):
+                    asyncio.run(result)
             except:
                 self.logger.error(traceback.format_exc())
             device.disconnect()

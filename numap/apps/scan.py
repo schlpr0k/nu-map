@@ -17,6 +17,8 @@ Physical layer:
 Example:
     numapscan -P greatfet -q
 '''
+import asyncio
+import inspect
 import time
 import traceback
 from numap.apps.base import NumapApp
@@ -48,7 +50,9 @@ class NumapScanApp(NumapApp):
                 self.start_time = time.time()
                 device = self.load_device(device_name, phy)
                 device.connect()
-                device.run()
+                result = device.run()
+                if inspect.isawaitable(result):
+                    asyncio.run(result)
                 device.disconnect()
             except:
                 self.logger.error(traceback.format_exc())
