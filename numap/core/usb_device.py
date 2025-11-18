@@ -4,10 +4,12 @@
 
 # TODO: replace with FaceDancer
 
+import importlib
 import inspect
-import traceback
 import struct
-from numap.core.usb import DescriptorType, State, Request
+import sys
+import traceback
+from numap.core.usb import DescriptorType, Request, State
 from numap.core.usb_base import USBBaseActor
 from numap.fuzz.helpers import mutable
 
@@ -15,6 +17,43 @@ try:
     from facedancer import USBDevice as BaseUSBDevice
 except ImportError:  # pragma: no cover - compatibility with older facedancer
     from facedancer.USBDevice import USBDevice as BaseUSBDevice
+
+
+def _override_facedancer_factories(phy):
+    """Override facedancer factory functions to reuse *phy* when autodetecting."""
+
+    if phy is None:
+        return []
+
+    patched = []
+    module_names = ('facedancer', 'facedancer.device', 'facedancer.core')
+    for name in module_names:
+        module = sys.modules.get(name)
+        if module is None:
+            try:
+                module = importlib.import_module(name)
+            except ImportError:  # pragma: no cover - depends on facedancer install
+                continue
+        factory = getattr(module, 'FacedancerUSBApp', None)
+        if factory is None:
+            continue
+
+        def wrapper(*args, _orig=factory, **kwargs):
+            if not args and 'device' not in kwargs:
+                return phy
+            return _orig(*args, **kwargs)
+
+        setattr(module, 'FacedancerUSBApp', wrapper)
+        patched.append((module, factory))
+
+    return patched
+
+
+def _restore_facedancer_factories(patched):
+    """Restore facedancer factories patched by :func:`_override_facedancer_factories`."""
+
+    for module, factory in patched:
+        setattr(module, 'FacedancerUSBApp', factory)
 
 class USBDevice(USBBaseActor, BaseUSBDevice):
     name = 'Device'
@@ -265,20 +304,28 @@ class USBDevice(USBBaseActor, BaseUSBDevice):
         # nothing or accepted an optional backend argument.  Call into the base
         # implementation when it exists while gracefully handling the
         # historical call signatures so we remain compatible with every
-        # supported facedancer version.
+        # supported facedancer version.  Some facedancer releases always invoke
+        # ``FacedancerUSBApp()`` during ``connect()``, which would ignore the
+        # backend we already instantiated (for example when ``-P greatfet`` is
+        # provided).  Temporarily override the factory so zero-argument calls
+        # reuse ``self.phy`` and avoid unwanted autodetection.
         try:
             base_connect = BaseUSBDevice.connect
         except AttributeError:
             base_connect = None
 
-        if base_connect is not None:
-            try:
-                base_connect(self)
-            except TypeError:
-                base_connect(self, self.phy)
-            self._base_connected = True
-        else:
-            self._base_connected = False
+        patched_factories = _override_facedancer_factories(self.phy)
+        try:
+            if base_connect is not None:
+                try:
+                    base_connect(self, self.phy)
+                except TypeError:
+                    base_connect(self)
+                self._base_connected = True
+            else:
+                self._base_connected = False
+        finally:
+            _restore_facedancer_factories(patched_factories)
         # skipping USB.state_attached may not be strictly correct (9.1.1.{1,2})
         self.state = State.powered
 
