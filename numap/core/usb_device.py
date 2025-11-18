@@ -4,6 +4,7 @@
 
 # TODO: replace with FaceDancer
 
+import inspect
 import traceback
 import struct
 from numap.core.usb import DescriptorType, State, Request
@@ -50,9 +51,30 @@ class USBDevice(USBBaseActor, BaseUSBDevice):
             descriptors = {}
 
         USBBaseActor.__init__(self, app, phy)
-        BaseUSBDevice.__init__(self, phy, usb_class, device_subclass, protocol_rel_num, max_packet_size_ep0,
-            vendor_id, product_id, device_rev, manufacturer_string, product_string, serial_number_string, configurations, 
-            descriptors)
+
+        # facedancer >= 2024.7 changed the USBDevice.__init__ signature to only accept
+        # ``self``.  Older releases still expect the entire descriptor payload.  Detect
+        # which variant we are running against to avoid raising a TypeError when the
+        # new signature is in use.
+        base_init = BaseUSBDevice.__init__
+        expects_args = True
+        try:
+            params = list(inspect.signature(base_init).parameters.values())
+        except (TypeError, ValueError):  # pragma: no cover - inspect can fail on some callables
+            params = None
+
+        if params is not None:
+            expects_args = any(p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD,
+                                          p.KEYWORD_ONLY, p.VAR_POSITIONAL)
+                               for p in params[1:])
+
+        if expects_args:
+            base_init(self, phy, usb_class, device_subclass, protocol_rel_num,
+                      max_packet_size_ep0, vendor_id, product_id, device_rev,
+                      manufacturer_string, product_string, serial_number_string,
+                      configurations, descriptors)
+        else:
+            base_init(self)
 
         self.supported_device_class_trigger = False
         self.supported_device_class_count = 0
