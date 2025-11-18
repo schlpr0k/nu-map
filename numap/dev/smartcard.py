@@ -465,7 +465,7 @@ class USBSmartcardInterface(USBInterface):
     def handle_buffer_available(self):
         if not self.int_q.empty():
             buff = self.int_q.get()
-            self.debug('Sending data to host: %s' % (buff.hex())
+            self.debug('Sending data to host: %s', buff.hex())
             self.send_on_endpoint(3, buff)
         else:
             self.send_on_endpoint(3, b'')
