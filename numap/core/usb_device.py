@@ -314,18 +314,14 @@ class USBDevice(USBBaseActor, BaseUSBDevice):
         except AttributeError:
             base_connect = None
 
-        patched_factories = _override_facedancer_factories(self.phy)
-        try:
-            if base_connect is not None:
-                try:
-                    base_connect(self, self.phy)
-                except TypeError:
-                    base_connect(self)
-                self._base_connected = True
-            else:
-                self._base_connected = False
-        finally:
-            _restore_facedancer_factories(patched_factories)
+        if base_connect is not None:
+            try:
+                base_connect(self, self.phy)
+            except TypeError:
+                base_connect(self)
+            self._base_connected = True
+        else:
+            self._base_connected = False
         # skipping USB.state_attached may not be strictly correct (9.1.1.{1,2})
         self.state = State.powered
 
