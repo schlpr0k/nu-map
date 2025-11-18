@@ -259,11 +259,20 @@ class NumapVSScanApp(NumapApp):
             self.start_time = time.time()
             device = USBVendorSpecificDevice(self, phy, vid, pid)
             try:
-                with self._test_timeout_guard():
+                with self._test_timeout_guard() as timeout_guard:
                     device.connect()
                     result = device.run()
-                    if inspect.isawaitable(result):
-                        asyncio.run(result)
+                if inspect.isawaitable(result):
+                    remaining = getattr(timeout_guard, 'remaining', None)
+                    try:
+                        if remaining and remaining > 0:
+                            asyncio.run(asyncio.wait_for(result, timeout=remaining))
+                        else:
+                            if remaining == 0:
+                                raise _TestTimeoutExpired
+                            asyncio.run(result)
+                    except asyncio.TimeoutError:
+                        raise _TestTimeoutExpired
             except _TestTimeoutExpired:
                 self.current_test_timed_out = True
                 self.logger.warning('Test exceeded %d seconds, moving to the next device',
@@ -338,23 +347,49 @@ class NumapVSScanApp(NumapApp):
     @contextlib.contextmanager
     def _test_timeout_guard(self):
         if not self.test_timeout or self.test_timeout <= 0:
-            yield
+            yield _TestTimeoutInfo(None)
             return
+
+        timeout_info = _TestTimeoutInfo(self.test_timeout)
 
         def _handle_timeout(signum, frame):
             raise _TestTimeoutExpired
 
         previous_handler = signal.signal(signal.SIGALRM, _handle_timeout)
+        timeout_info.start()
         signal.alarm(self.test_timeout)
         try:
-            yield
+            yield timeout_info
         finally:
             signal.alarm(0)
+            timeout_info.stop()
             signal.signal(signal.SIGALRM, previous_handler)
 
 
 class _TestTimeoutExpired(Exception):
     pass
+
+
+class _TestTimeoutInfo(object):
+
+    def __init__(self, timeout):
+        self.timeout = timeout
+        self.remaining = timeout
+        self._start = None
+
+    def start(self):
+        if self.timeout is None:
+            return
+        self._start = time.monotonic()
+
+    def stop(self):
+        if self.timeout is None or self._start is None:
+            self.remaining = self.timeout
+            return
+        elapsed = time.monotonic() - self._start
+        remaining = self.timeout - elapsed
+        self.remaining = remaining if remaining > 0 else 0
+        self._start = None
 
 
 def main():
