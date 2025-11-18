@@ -2,7 +2,9 @@
 Scan USB host for vendor specific device support
 
 Usage:
-    numapvsscan [-P=PHY_INFO] [-q] [-d=DB_FILE] [-s=VID:PID] [-t=TIMEOUT] [-z|-b=DELAY] [-r=RESUME_FILE] [-o=OS]  [-e] [-v ...]
+    numapvsscan [-P=PHY_INFO] [-q] [-d=DB_FILE] [-s=VID:PID] [-t=TIMEOUT]
+                [-T=TEST_TIMEOUT] [-z|-b=DELAY] [-r=RESUME_FILE] [-o=OS]  [-e]
+                [-v ...]
 
 Options:
     -P --phy PHY_INFO           physical layer info, see list below
@@ -11,6 +13,9 @@ Options:
     -d --db DB_FILE             vid, pid database file (see DB_FILE below)
     -s --vid_pid VID:PID        specific VID:PID combination scan
     -t --timeout TIMEOUT        seconds to wait for host to detect each device (defualt: 3)
+    -T --test_timeout TEST_TIMEOUT
+                                seconds to wait before aborting a test and moving to
+                                the next one (default: 30)
     -r --resume RESUME_FILE     filename to store/load scan session data
     -z --single_step            wait for keypress between each test
     -b --between DELAY          delay in seconds to wait between tests
@@ -45,6 +50,7 @@ import traceback
 import os
 import signal
 import sys
+import contextlib
 import six
 from six.moves import cPickle
 from numap.apps.base import NumapApp
@@ -121,6 +127,11 @@ class NumapVSScanApp(NumapApp):
         timeout = self.options['--timeout']
         if timeout:
             self.scan_session.timeout = int(timeout)
+        test_timeout = self.options.get('--test_timeout')
+        if test_timeout:
+            self.test_timeout = int(test_timeout)
+        else:
+            self.test_timeout = 30
         self.single_step = False
         if self.options['--single_step']:
             self.single_step = True
@@ -246,13 +257,22 @@ class NumapVSScanApp(NumapApp):
             self.start_time = time.time()
             device = USBVendorSpecificDevice(self, phy, vid, pid)
             try:
-                device.connect()
-                result = device.run()
-                if inspect.isawaitable(result):
-                    asyncio.run(result)
+                with self._test_timeout_guard():
+                    device.connect()
+                    result = device.run()
+                    if inspect.isawaitable(result):
+                        asyncio.run(result)
+            except _TestTimeoutExpired:
+                self.logger.warning('Test exceeded %d seconds, moving to the next device',
+                                    self.test_timeout)
             except:
                 self.logger.error(traceback.format_exc())
-            device.disconnect()
+            finally:
+                try:
+                    device.disconnect()
+                except Exception:
+                    self.logger.debug('Failed to disconnect device cleanly after test',
+                                      exc_info=True)
             if not self.is_host_alive():
                 break
             if self.current_usb_function_supported:
@@ -302,6 +322,27 @@ class NumapVSScanApp(NumapApp):
             self.logger.info('have been waiting long enough (over %d secs.), disconnect' % (time_elapsed))
             stop_phy = True
         return stop_phy
+
+    @contextlib.contextmanager
+    def _test_timeout_guard(self):
+        if not self.test_timeout or self.test_timeout <= 0:
+            yield
+            return
+
+        def _handle_timeout(signum, frame):
+            raise _TestTimeoutExpired
+
+        previous_handler = signal.signal(signal.SIGALRM, _handle_timeout)
+        signal.alarm(self.test_timeout)
+        try:
+            yield
+        finally:
+            signal.alarm(0)
+            signal.signal(signal.SIGALRM, previous_handler)
+
+
+class _TestTimeoutExpired(Exception):
+    pass
 
 
 def main():
