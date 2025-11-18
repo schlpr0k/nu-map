@@ -59,7 +59,19 @@ class USBConfiguration(USBBaseActor, BaseUSBConfiguration):
             # no-argument call to keep nümap compatible with both versions.
             BaseUSBConfiguration.__init__(self)
             self.index = index
-            self.attributes = attributes
+
+            # facedancer 2024.2 made ``attributes`` a read-only property that
+            # proxies the value from the underlying descriptor object.  Try to
+            # assign normally first and, if the setter is missing, update the
+            # descriptor directly so both releases continue to work.
+            try:
+                self.attributes = attributes
+            except AttributeError:
+                if hasattr(self, 'descriptor'):
+                    self.descriptor.attributes = attributes
+                else:  # pragma: no cover - defensive fallback
+                    raise
+
             self.max_power = max_power
         self.configuration_string = string
         self.configuration_string_index = 0
