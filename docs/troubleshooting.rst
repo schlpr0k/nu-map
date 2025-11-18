@@ -1,8 +1,14 @@
 Troubleshooting
 ===============
 
-Facedancer Communication
-------------------------
+GreatFET / Facedancer Communication
+-----------------------------------
+
+In some cases, there are communication issues with the facedancer or the
+GreatFET FaceDancer backend.  nümap now talks to the board through the
+``greatfet`` and ``facedancer`` Python libraries, so make sure both packages
+are installed and up-to-date (``pip install --upgrade greatfet facedancer``)
+before troubleshooting hardware issues.
 
 In some cases, there are communication issues with the facedancer.
 It might not be clear that that's the problem at first,

@@ -14,15 +14,16 @@ Options:
     --pid PID                   override product ID
 
 Physical layer:
-    fd:<serial_port>        use facedancer connected to given serial port
+    greatfet[:serial]       use a GreatFET board (auto-detects when serial omitted)
+    facedancer              use legacy FaceDancer hardware
     gadgetfs                use gadgetfs (requires mounting of gadgetfs beforehand)
     auto                    automatically detect how we should connect
 
 Examples:
     emulate keyboard:
-        numapemulate -P fd:/dev/ttyUSB1 -C keyboard
+        numapemulate -P greatfet -C keyboard
     emulate your own device:
-        numapemulate -P fd:/dev/ttyUSB1 -C my_usb_device.py
+        numapemulate -P greatfet -C my_usb_device.py
 '''
 import traceback
 

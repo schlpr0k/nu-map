@@ -10,11 +10,12 @@ Options:
     -q --quiet                  quiet mode. only print warning/error messages
 
 Physical layer:
-    fd:<serial_port>        use facedancer connected to given serial port
+    greatfet[:serial]       use a GreatFET board (auto-detects when serial omitted)
+    facedancer              use legacy FaceDancer hardware
     gadgetfs                use gadgetfs (requires mounting of gadgetfs beforehand)
 
 Example:
-    numapscan -P fd:/dev/ttyUSB0 -q
+    numapscan -P greatfet -q
 '''
 import time
 import traceback
